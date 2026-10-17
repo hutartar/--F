@@ -1,0 +1,18 @@
+# 临时文件
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# 大文件和输出
+output/*.xlsx
+output/*.json
+output/ml_models/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 虚拟环境
+venv*/
+.venv/

@@ -5,13 +5,32 @@
 import os
 
 # 路径配置
-BASE_DIR = r"C:\Users\MECHREV\Desktop\文本数据提取方法\文本\文本数据提取"
-PDF_DIR = r"C:\Users\MECHREV\Desktop\文本数据提取方法\文本\测试集\annual_reports"
-VIS_DIR = r"C:\Users\MECHREV\Desktop\文本数据提取方法\文本\可视化"
+# 本文件位于 <BASE_DIR>/python代码/config.py；默认基于本文件位置自动推导，
+# 并允许通过环境变量覆盖，避免硬编码绝对路径导致换机器/换目录后无法运行。
+_HERE = os.path.dirname(os.path.abspath(__file__))                   # .../文本数据提取/python代码
+_DEFAULT_BASE_DIR = os.path.dirname(_HERE)                          # .../文本数据提取
+_TEXT_DIR = os.path.dirname(_DEFAULT_BASE_DIR)                      # .../文本
+_PROJECT_ROOT = os.path.dirname(_TEXT_DIR)                          # .../文本数据提取方法
+
+BASE_DIR = os.environ.get("FX_BASE_DIR", _DEFAULT_BASE_DIR)
+PDF_DIR = os.environ.get(
+    "FX_PDF_DIR",
+    os.path.join(_TEXT_DIR, "测试集", "annual_reports"),
+)
+VIS_DIR = os.environ.get(
+    "FX_VIS_DIR",
+    os.path.join(_TEXT_DIR, "可视化"),
+)
 OUTPUT_DIR = os.path.join(VIS_DIR, "output")
 CACHE_DIR = os.path.join(BASE_DIR, "cache")
 COMPANY_LIST_DOCX = os.path.join(BASE_DIR, "负责的50家企业.docx")
-TARGET_EXCEL = r"C:\Users\MECHREV\Desktop\文本数据提取方法\负责的企业名单（50家）上市公司年报外汇风险管理数据查找、搜集、整理、输入 - 正式信息输入文本（劲仔食品-中颖电子）.xlsx"
+TARGET_EXCEL = os.environ.get(
+    "FX_TARGET_EXCEL",
+    os.path.join(
+        _PROJECT_ROOT,
+        "负责的企业名单（50家）上市公司年报外汇风险管理数据查找、搜集、整理、输入 - 正式信息输入文本（劲仔食品-中颖电子）.xlsx",
+    ),
+)
 
 REPORT_YEAR = "2023"
 

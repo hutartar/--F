@@ -82,7 +82,7 @@ except ImportError:
 
 def process_all(use_llm=True, refine_all=False, review_suggestions=False,
                 train_ml=False, active_learning=False, download=False,
-                report_year=None, output_dir=None):
+                report_year=None, output_dir=None, use_ml=True):
     # 支持动态切换年份和输出目录
     year = report_year or REPORT_YEAR
     out_dir = output_dir or OUTPUT_DIR
@@ -94,6 +94,10 @@ def process_all(use_llm=True, refine_all=False, review_suggestions=False,
     config.REPORT_YEAR = year
     config.FEEDBACK_STORE_PATH = os.path.join(out_dir, "feedback.jsonl")
     config.ML_MODEL_DIR = os.path.join(out_dir, "ml_models")
+    # 同步语义模型开关（--no-ml 时关闭神经网络，仅 TF-IDF/启发式回退）
+    config.ML_USE_EMBEDDINGS = use_ml
+    from ml_scorer import set_semantic_enabled
+    set_semantic_enabled(use_ml)
 
     print("=" * 60)
     print(f"年报外汇风险管理文本数据自动化提取系统 v5-ML ({year}年)")
@@ -101,7 +105,7 @@ def process_all(use_llm=True, refine_all=False, review_suggestions=False,
     print(f"  输出目录: {out_dir}")
 
     # ── 步骤0：ML模型准备 ──
-    if ML_USE_EMBEDDINGS or train_ml:
+    if use_ml or train_ml:
         print("\n[0/9] 初始化ML语义模型...")
         if HAS_EMBEDDINGS:
             try:
@@ -340,7 +344,7 @@ def process_all(use_llm=True, refine_all=False, review_suggestions=False,
 
     # ── 步骤9：保存ML模型 ──
     print("\n[9/9] 保存ML模型状态...")
-    if ML_USE_EMBEDDINGS:
+    if use_ml:
         try:
             save_ml_models(ML_MODEL_DIR)
             print(f"  ML模型已保存到: {ML_MODEL_DIR}")
@@ -386,10 +390,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # 如果指定--no-ml，禁用嵌入模型
-    if args.no_ml:
-        from config import ML_USE_EMBEDDINGS
-
     process_all(
         use_llm=not args.no_llm,
         refine_all=args.refine_all,
@@ -399,4 +399,5 @@ if __name__ == "__main__":
         download=args.download,
         report_year=args.year,
         output_dir=args.output_dir,
+        use_ml=not args.no_ml,
     )

@@ -60,11 +60,40 @@ _embedder_instance = None
 _classifier_instance = None
 _bp_detector_instance = None
 
+# 语义模型开关：--no-ml 时关闭神经网络语义路径，回退到 TF-IDF/启发式
+_semantic_enabled = True
+
+
+def set_semantic_enabled(enabled: bool) -> None:
+    """启用/禁用神经网络语义嵌入与原型分类器。
+
+    禁用后：不加载 BGE 语义模型、不创建语义分类器，仅使用 TF-IDF 与启发式评分，
+    与命令行 --no-ml“仅使用TF-IDF回退方案”的语义一致。
+    """
+    global _semantic_enabled, _embedder_instance, _classifier_instance, _bp_detector_instance
+    _semantic_enabled = bool(enabled)
+    # 重置单例，确保开关切换后下一次调用按新策略重建
+    _embedder_instance = None
+    _classifier_instance = None
+    _bp_detector_instance = None
+
 
 def _get_embedder() -> Optional[Any]:
     """获取全局嵌入器实例（延迟加载）"""
     global _embedder_instance
     if _embedder_instance is None:
+        # 语义模型被禁用（--no-ml）：跳过神经网络，直接使用 TF-IDF+SVD 回退
+        if not _semantic_enabled:
+            try:
+                from lightweight_embedder import LightweightChineseEmbedder
+                _embedder_instance = LightweightChineseEmbedder(
+                    svd_components=256, max_features=8000
+                )
+                print("  [ML] 语义模型已禁用，使用TF-IDF+SVD回退嵌入器")
+                return _embedder_instance
+            except Exception:
+                return None
+
         # 方案1：优先加载本地缓存的 BGE 语义嵌入模型
         if _HAS_EMBEDDINGS:
             try:
@@ -100,7 +129,7 @@ def _get_embedder() -> Optional[Any]:
 def _get_classifier() -> Optional[Any]:
     """获取全局分类器实例（延迟加载）"""
     global _classifier_instance
-    if _classifier_instance is None and _HAS_CLASSIFIER:
+    if _classifier_instance is None and _HAS_CLASSIFIER and _semantic_enabled:
         embedder = _get_embedder()
         if embedder is not None:
             try:
@@ -120,7 +149,7 @@ def _get_classifier() -> Optional[Any]:
 def _get_bp_detector() -> Optional[Any]:
     """获取全局语义锅炉板检测器"""
     global _bp_detector_instance
-    if _bp_detector_instance is None:
+    if _bp_detector_instance is None and _semantic_enabled:
         embedder = _get_embedder()
         if embedder and embedder.is_ready():
             if _HAS_EMBEDDINGS and _SemanticBoilerplateDetector:
@@ -270,6 +299,17 @@ class TextQualityScorer:
 
         融合语义ML分和启发式维度分
         """
+        # M3 的“无”/“不适用”是对原文“无外币货币性项目”的忠实提取，属于有效披露，
+        # 需在空文本判断之前单独识别（“不适用”长度为3，不会落入下面的短文本分支），
+        # 否则会被误判 LOW/MEDIUM 并送入 LLM 精炼
+        if module_name == "module3" and text and text.strip() in ("无", "不适用"):
+            return QualityResult(
+                module_name=module_name, overall_score=100,
+                dimensions={"completeness": 100, "relevance": 100, "cleanliness": 100,
+                            "boilerplate": 100, "informativeness": 100},
+                flags=["NO_FOREIGN_CURRENCY"], confidence="HIGH",
+            )
+
         # 空文本处理
         if not text or len(text.strip()) < 3:
             return QualityResult(
@@ -404,7 +444,7 @@ class TextQualityScorer:
         if re.match(r'^.{0,5}[、，,]\s*[一-鿿]', text):
             score -= 15
         if module_name == "module3":
-            if text == "无":
+            if text in ("无", "不适用"):
                 score = 100
             elif len(text) < 2:
                 score = max(score - 50, 0)

@@ -43,8 +43,8 @@ class CrossValidator:
         m3 = record.get("module3", "")
         m5 = record.get("module5", "")
 
-        # M3有实质币种
-        has_currencies = bool(m3 and m3 != "无" and len(m3) >= 2)
+        # M3有实质币种（"无"/"不适用"表示无外币项目，不计入）
+        has_currencies = bool(m3 and m3 not in ("无", "不适用") and len(m3) >= 2)
         # M5为空或无实质内容
         no_risk = not m5 or len(m5.strip()) < 30
 
@@ -119,7 +119,7 @@ class CrossValidator:
         m3 = record.get("module3", "")
         m5 = record.get("module5", "")
 
-        if not m3 or m3 == "无" or not m5:
+        if not m3 or m3 in ("无", "不适用") or not m5:
             return None
 
         # 提取M3中的币种

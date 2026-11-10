@@ -404,7 +404,8 @@ def extract_module3(full_text, targets, module_cfg):
                     re.search(r'外币货币性项目', fin_full[:100000])
                 )
                 if not has_foreign_currency:
-                    return "无"
+                    # 未检索到外币相关信息：按规范留空，不填"无"（避免把未检出误当确定结论）
+                    return ""
                 return ""
         else:
             return ""
@@ -439,9 +440,9 @@ def extract_module3(full_text, targets, module_cfg):
         # 检查是否明确标注"无"（如"外币货币性项目：无"）
         if re.search(r'(?:外币货币性项目|境外经营)\S{0,10}(?:：|:)\s*无', ctx):
             return "无"
-        # 如果窗口内没有任何币种且标题附近标注了不适用，返回"无"
+        # 如果窗口内没有任何币种且标题附近标注了不适用，忠实返回原文表述"不适用"
         if re.search(r'外币货币性项目.*?(?:□|☐).*?适用.*?(?:☑|☒|✓).*?不适用', ctx, re.DOTALL):
-            return "无"
+            return "不适用"
 
     return '、'.join(currency_order) if currency_order else ""
 
